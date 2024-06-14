@@ -1,0 +1,206 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="formTitle">Create a Main Form</title>
+    <link rel="stylesheet" href="../../Content/bootstrap.min.css">
+    <style>
+        .is-invalid {
+            border-color: red;
+        }
+
+        .form-container {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        .close-button {
+            float: right;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5 form-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1 id="mainFormTitle">Create a Main Form</h1>
+            <span id="closeButton" class="close-button" onclick="window.history.back();" style="display: none;">&times;</span>
+        </div>
+        <form id="projectForm">
+            <div class="form-group row">
+                <label for="projectName" class="col-sm-4 col-form-label">Project Name</label>
+                <div class="col-sm-8">
+                    <input type="text" class="form-control" id="projectName" required>
+                </div>
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-4">Project Enabled</div>
+                <div class="col-sm-8">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="projectEnabled" checked>
+                        <label class="form-check-label" for="projectEnabled"></label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-4">Accepting New Visits</div>
+                <div class="col-sm-8">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="acceptingNewVisits">
+                        <label class="form-check-label" for="acceptingNewVisits"></label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="supportedImageTypes" class="col-sm-4 col-form-label">Supported Image Types</label>
+                <div class="col-sm-8">
+                    <select class="form-control" id="supportedImageTypes" disabled>
+                        <option value=""></option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group row" id="saveButtonContainer">
+                <div class="col-sm-8 offset-sm-4">
+                    <button type="submit" class="btn btn-primary" id="saveButton" disabled>Save</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <script src="../../Scripts/jquery-3.4.1.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            function updateSaveButtonState() {
+                var isProjectNameFilled = $('#projectName').val().trim() !== '';
+                var isProjectEnabledChecked = $('#projectEnabled').is(':checked');
+                var isSaveButtonEnabled = isProjectNameFilled && isProjectEnabledChecked;
+                $('#saveButton').prop('disabled', !isSaveButtonEnabled);
+
+                if (!isProjectNameFilled) {
+                    $('#projectName').addClass('is-invalid');
+                } else {
+                    $('#projectName').removeClass('is-invalid');
+                }
+            }
+            // This function fetches the supported image types from the server
+            // and populates the Supported Image Types dropdown with the retrieved data.
+            function fetchSupportedImageTypes(selectedId = null, readOnly = false) {
+                $.ajax({
+                    url: '/api/supportedImageTypes',
+                    type: 'GET',
+                    success: function (data) {
+                        var supportedImageTypes = $('#supportedImageTypes');
+                        supportedImageTypes.empty();
+                        supportedImageTypes.append('<option value=""></option>');
+                        $.each(data, function (index, item) {
+                            supportedImageTypes.append('<option value="' + item.Id + '">' + item.Name + '</option>');
+                        });
+
+                        if (selectedId) {
+                            supportedImageTypes.val(selectedId);
+                        }
+                        else {
+                            if (readOnly) {
+                                supportedImageTypes.empty();
+                            }
+                        }
+                    },
+                    error: function () {
+                        alert('An error occurred while fetching supported image types.');
+                    }
+                });
+            }
+
+            // This function loads the project data for the given project ID
+            // and populates the form with the retrieved data.
+            function loadProjectData(projectId) {
+                $.ajax({
+                    url: '/Home/GetProject',
+                    type: 'GET',
+                    data: { id: projectId },
+                    success: function (project) {
+                        if (project) {
+                            $('#projectName').val(project.ProjectName).prop('readonly', true);
+                            $('#projectEnabled').prop('checked', project.ProjectEnabled).prop('disabled', true);
+                            $('#acceptingNewVisits').prop('checked', project.AcceptingNewVisits).prop('disabled', true);
+                            $('#saveButtonContainer').hide();
+                            $('#closeButton').show();
+                            $('#mainFormTitle').text('');
+
+                            fetchSupportedImageTypes(project.SupportedImageTypeId, true);
+                        } else {
+                            alert('Project not found');
+                            window.history.back();
+                        }
+                    },
+                    error: function () {
+                        alert('An error occurred while fetching the project details.');
+                        window.history.back();
+                    }
+                });
+            }
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var projectId = urlParams.get('id');
+
+            if (projectId) {
+                loadProjectData(projectId);
+                $('#mainFormTitle').text('');
+                $('#closeButton').show();
+            } else {
+                fetchSupportedImageTypes();
+                $('#closeButton').hide();
+                $('#mainFormTitle').text('Create a Main Form');
+            }
+
+            $('#projectName, #projectEnabled').on('input change', function () {
+                updateSaveButtonState();
+            });
+
+            $('#acceptingNewVisits').on('change', function () {
+                var supportedImageTypes = $('#supportedImageTypes');
+                supportedImageTypes.prop('disabled', !this.checked);
+                if (this.checked) {
+                    supportedImageTypes.find('option[value=""]').remove();
+                    supportedImageTypes.val('1'); // Set default to JPG
+                } else {
+                    supportedImageTypes.prepend('<option value=""></option>');
+                    supportedImageTypes.val('');
+                }
+            });
+
+            $('#projectForm').on('submit', function (e) {
+                e.preventDefault();
+                var projectName = $('#projectName').val();
+                var projectEnabled = $('#projectEnabled').is(':checked');
+                var acceptingNewVisits = $('#acceptingNewVisits').is(':checked');
+                var supportedImageTypeId = $('#supportedImageTypes').val() || null;
+
+                // This function sends a request to create a new project with the specified details.
+                // If the request is successful, it shows an alert and redirects the user to the list of projects page.
+                // If there is an error, it shows an error alert.
+                $.ajax({
+                    url: '/api/projects',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        ProjectName: projectName,
+                        ProjectEnabled: projectEnabled,
+                        AcceptingNewVisits: acceptingNewVisits,
+                        SupportedImageTypeId: supportedImageTypeId
+                    }),
+                    success: function () {
+                        alert('Project saved successfully!');
+                        window.location.href = '/Home/ListProjects';
+                    },
+                    error: function () {
+                        alert('An error occurred while saving the project.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

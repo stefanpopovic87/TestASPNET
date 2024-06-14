@@ -1,0 +1,60 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Projects</title>
+    <link rel="stylesheet" href="../../Content/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>List All Projects</h1>
+        <table class="table table-bordered" id="projectsTable">
+            <thead>
+                <tr>
+                    <th>Project Name</th>
+                    <th>Accepting New Visits</th>
+                    <th>Supported Image Types</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically loaded here -->
+            </tbody>
+        </table>
+    </div>
+    <script src="../../Scripts/jquery-3.4.1.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // This function loads all projects by sending a GET request to the server.
+            // It populates the table with the retrieved project data.
+            function loadProjects() {
+                $.ajax({
+                    url: '/api/projects',
+                    type: 'GET',
+                    success: function (projects) {
+                        var projectsTableBody = $('#projectsTable tbody');
+                        projectsTableBody.empty();
+                        $.each(projects, function (index, project) {
+                            var row = $('<tr>').data('project-id', project.Id);
+                            row.append($('<td>').text(project.ProjectName));
+                            row.append($('<td>').text(project.AcceptingNewVisits ? 'Yes' : 'No'));
+                            row.append($('<td>').text(project.SupportedImageType ? project.SupportedImageType.Name : ''));
+                            projectsTableBody.append(row);
+                        });
+
+                        // Attach a double-click event handler to each row to redirect to the project details page
+                        $('#projectsTable tbody tr').on('dblclick', function () {
+                            var projectId = $(this).data('project-id');
+                            window.location.href = '/Home/Main?id=' + projectId;
+                        });
+                    },
+                    error: function () {
+                        alert('An error occurred while fetching the projects.');
+                    }
+                });
+            }
+            loadProjects();  // Initial call to load all projects when the page loads
+        });
+    </script>
+</body>
+</html>
